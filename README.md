@@ -87,6 +87,12 @@ CONFIG_PACKAGE_kmod-mt76x2u=y
 CONFIG_PACKAGE_usb-modeswitch=y
 ```
 
+机型默认列表包含 `kmod-mt7915e`，恢复 mt76 包定义后它会被自动选中。
+三个配置已显式禁用 `kmod-mt7915e` 和 `kmod-mt7981-firmware`：内置无线继续使用
+`kmod-mt_wifi` 及厂商固件，USB 网卡使用 `kmod-mt76x2u`。不要启用 `kmod-mt7915e`，
+它与该厂商内核的 WED 接口不兼容，会在 `mt7915/mmio.c` 出现
+`assignment to expression with array type`。这不会禁用内置无线的厂商驱动。
+
 将这些修改推送到自己的 GitHub 仓库后，运行 `ImmortalWrt Builder`，选择对应机型
 或 `all` 即可，通常无需勾选 SSH。编译会检查 `make defconfig` 后驱动是否仍被选中，
 缺失时直接报错；成功后从该次运行的 Artifacts 或启用发布后的 Release 下载对应

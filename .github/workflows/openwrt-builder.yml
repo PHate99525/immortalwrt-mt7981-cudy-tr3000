@@ -243,12 +243,16 @@ jobs:
             
             # 4. 刷新配置并下载
             make defconfig
-            for PKG in kmod-mt76x2u kmod-mac80211 kmod-cfg80211 usb-modeswitch; do
+            for PKG in kmod-mt76x2u kmod-mac80211 kmod-cfg80211 kmod-mt_wifi usb-modeswitch; do
               if ! grep -qx "CONFIG_PACKAGE_${PKG}=y" .config; then
                 echo "::error::Required package $PKG is missing after make defconfig"
                 exit 1
               fi
             done
+            if grep -qE '^CONFIG_PACKAGE_kmod-mt7915e=[ym]$' .config; then
+              echo "::error::Disable kmod-mt7915e: onboard Wi-Fi uses kmod-mt_wifi; mt7915e is incompatible with the vendor WED API"
+              exit 1
+            fi
             make download -j$(nproc)
             
             # 5. 开始编译
