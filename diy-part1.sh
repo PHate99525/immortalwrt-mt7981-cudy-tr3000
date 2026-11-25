@@ -10,6 +10,9 @@
 # See /LICENSE for more information.
 #
 
+# Restore the mac80211 USB driver package omitted by the vendor source tree.
+bash "$(dirname "$(readlink -f "$0")")/scripts/add-mt76.sh" || exit 1
+
 # Uncomment a feed source
 #sed -i 's/^#\(.*helloworld\)/\1/' feeds.conf.default
 

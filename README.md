@@ -67,6 +67,51 @@ echo 1 > /sys/class/gpio/modem_power/value
 
 ---
 
+## MT7612U USB 无线网卡
+
+本项目使用的厂商源码分支没有标准的 `package/kernel/mt76`，所以原先在
+`make menuconfig` 中找不到 `kmod-mt76x2u`，与 Linux 6.6 是否支持芯片无关。
+
+`diy-part1.sh` 会在更新 feeds 前执行 `scripts/add-mt76.sh`，从 ImmortalWrt
+24.10 固定提交 `2e13223aaa378a2cfcd01b9739aef6fa3cc645e1` 导入完整的 mt76
+软件包定义及兼容补丁。SSH 菜单配置和正式编译均使用该步骤；若源码已经带有
+`package/kernel/mt76`，脚本会停止，需先确认应使用哪个版本，避免覆盖源码自带的驱动。
+
+三个机型配置均已启用以下软件包，保留内置无线使用的 `kmod-mt_wifi` 和现有的
+`wpad-openssl`。mt76 的其他依赖及 MT7662U 固件由软件包规则自动安装：
+
+```text
+CONFIG_PACKAGE_kmod-cfg80211=y
+CONFIG_PACKAGE_kmod-mac80211=y
+CONFIG_PACKAGE_kmod-mt76x2u=y
+CONFIG_PACKAGE_usb-modeswitch=y
+```
+
+将这些修改推送到自己的 GitHub 仓库后，运行 `ImmortalWrt Builder`，选择对应机型
+或 `all` 即可，通常无需勾选 SSH。编译会检查 `make defconfig` 后驱动是否仍被选中，
+缺失时直接报错；成功后从该次运行的 Artifacts 或启用发布后的 Release 下载对应
+`sysupgrade.bin`。这里的 `=y` 表示将驱动软件包装入固件，驱动仍以 `.ko` 模块加载。
+
+若要在 SSH 中调整配置，选项位于 `Kernel modules -> Wireless Drivers -> kmod-mt76x2u`，
+也可在菜单中按 `/` 搜索 `mt76x2u`；保持为 `<*>`。菜单保存后，后续编译会检出保存配置
+后的项目提交。首次 Actions 编译和实机验证仍是确认该厂商分支兼容性的必要步骤。
+
+刷入固件并将网卡切换为 `0e8d:7612` 后检查：
+
+```sh
+lsmod | grep mt76
+dmesg | grep -iE 'mt76|firmware|usb'
+iw phy
+wifi config
+uci show wireless
+```
+
+在 LuCI 中配置新增的 `mac80211` 无线设备，不要改动内置无线的 `mtwifi` 设备。
+固件已包含 `usb-modeswitch`，但特定设备从 `0e8d:2870` 自动切换的规则仍需实机确认；
+若重启后仍显示该 ID，沿用已验证的切换方式。
+
+---
+
 ## SSH 连接 Action
 
 可以通过 ssh 连接到 Action 工作流来配置 `menuconfig` 。

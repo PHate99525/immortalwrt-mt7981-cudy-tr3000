@@ -61,6 +61,8 @@ env:
 jobs:
   menuconfig:
     name: ⚙️ Menuconfig & Push
+    outputs:
+      config_commit: ${{ steps.save_config.outputs.commit }}
     if: github.event.inputs.ssh == 'true' && github.event.inputs.device != 'all'
     runs-on: ubuntu-22.04
     steps:
@@ -78,6 +80,9 @@ jobs:
         working-directory: /workdir
         run: |
           git clone $REPO_URL -b $REPO_BRANCH --single-branch --filter=blob:none openwrt
+          if [ -n "${REPO_COMMIT}" ]; then
+            git -C openwrt checkout "${REPO_COMMIT}"
+          fi
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
       - name: 🔧 Set device variables
@@ -119,6 +124,7 @@ jobs:
           upterm-version: v0.29.0
           
       - name: 📤 Push config to main branch
+        id: save_config
         run: |
           SRC="/workdir/openwrt/.config"
           DST="$GITHUB_WORKSPACE/${CONFIG_FILE}"
@@ -136,6 +142,7 @@ jobs:
             git pull --rebase origin $CURRENT_BRANCH
             git push -f origin HEAD:$CURRENT_BRANCH
           )
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   build:
     name: 🔨 Build Firmware
@@ -146,6 +153,8 @@ jobs:
     steps:
       - name: 🙌 Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.menuconfig.outputs.config_commit || github.sha }}
 
       - name: 🪠 Free Disk Space
         uses: jlumbroso/free-disk-space@main
@@ -234,6 +243,12 @@ jobs:
             
             # 4. 刷新配置并下载
             make defconfig
+            for PKG in kmod-mt76x2u kmod-mac80211 kmod-cfg80211 usb-modeswitch; do
+              if ! grep -qx "CONFIG_PACKAGE_${PKG}=y" .config; then
+                echo "::error::Required package $PKG is missing after make defconfig"
+                exit 1
+              fi
+            done
             make download -j$(nproc)
             
             # 5. 开始编译
