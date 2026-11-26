@@ -67,6 +67,60 @@ echo 1 > /sys/class/gpio/modem_power/value
 
 ---
 
+## RTL8723BU / RTL8723DU USB 无线网卡
+
+三个机型配置还选入了源码分支已有的以下驱动和固件，没有额外导入第三方驱动：
+
+| USB 芯片 | 驱动包 | 固件包 |
+| --- | --- | --- |
+| RTL8723BU | `kmod-rtl8xxxu` | `rtl8723bu-firmware` |
+| RTL8723DU | `kmod-rtw88-8723du` | `rtl8723de-firmware` |
+
+RTL8723DU 使用 RTL8723D 系列共用固件，所以固件包名是 `de`。
+RTL8723B 的接口后缀决定驱动；这里按 USB 型号 BU 配置，没有选入 BE（PCIe）或
+BS（SDIO）驱动。实际设备需以 USB ID 和驱动绑定结果确认。
+Actions 会检查以上四个包是否装入固件，其他依赖由 `make defconfig` 自动选入。
+刷机后可用 `lsmod | grep -E 'rtl8xxxu|rtw88'`、`dmesg` 和 `iw phy` 检查识别情况，
+AP/STA 功能及稳定性仍需实机验证。
+
+---
+
+## RTL8821CU USB 无线网卡
+
+本副本在保留 MT7612U 支持的基础上，为三个机型增加 RTL8821CU 支持。
+源码分支已经提供 `kmod-rtw88-8821cu`，无需增加 feed 或导入第三方驱动：
+
+```text
+CONFIG_PACKAGE_kmod-rtw88-8821cu=y
+CONFIG_PACKAGE_rtl8821ce-firmware=y
+```
+
+`rtl8821ce-firmware` 是 RTL8821C 系列共用的固件包，也用于 CU USB 型号，安装文件为
+`/lib/firmware/rtw88/rtw8821c_fw.bin`。`make defconfig` 会自动选入
+`kmod-rtw88-usb`、`kmod-rtw88-8821c` 等依赖。现有 mac80211、cfg80211、
+`wpad-openssl` 和内置无线的 `kmod-mt_wifi` 继续保留。
+
+推送本副本到自己的 GitHub 仓库后，运行 `ImmortalWrt Builder` 并选择对应机型或
+`all`，无需勾选 SSH。Actions 会检查驱动和固件包在 `make defconfig` 后是否仍为
+`=y`。若使用菜单，按 `/` 搜索 `rtw88-8821cu`，保持选中为 `<*>`。
+
+刷入对应固件并插入网卡后检查：
+
+```sh
+lsusb
+lsmod | grep rtw88
+dmesg | grep -iE 'rtw|8821|firmware|usb'
+iw phy
+wifi config
+uci show wireless
+```
+
+在 LuCI 中配置新增的 `mac80211` 无线设备。USB ID 是否匹配、固件加载及 AP/STA
+模式需要实际编译和实机验证；若设备先以存储设备出现，按该设备实际 USB ID
+配置模式切换，不能套用下方 MT7612U 的 MediaTek ID。
+
+---
+
 ## MT7612U USB 无线网卡
 
 本项目使用的厂商源码分支没有标准的 `package/kernel/mt76`，所以原先在
